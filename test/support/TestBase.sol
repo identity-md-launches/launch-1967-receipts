@@ -39,4 +39,35 @@ abstract contract TestBase {
     function assertLe(uint256 a, uint256 b, string memory err) internal pure {
         require(a <= b, err);
     }
+
+    /// @dev Maps any `x` into `[min, max]` without discarding the run, so every fuzz case is a real
+    /// case. Small inputs land on the edges first (min, max, min+1, max-1), then wrap into the range.
+    function bound(uint256 x, uint256 min, uint256 max) internal pure returns (uint256 result) {
+        require(min <= max, "bound: min > max");
+        if (x >= min && x <= max) return x;
+        uint256 size = max - min + 1;
+        if (size == 0) {
+            // The full uint256 range: nothing to do.
+            return x;
+        }
+        if (x <= 3 && size > x) {
+            // 0,1,2,3 -> min, min+1, min+2, min+3
+            return min + x;
+        }
+        if (x >= type(uint256).max - 3 && size > type(uint256).max - x) {
+            // max-3..max -> max-3..max
+            return max - (type(uint256).max - x);
+        }
+        if (x > max) {
+            uint256 diff = x - max;
+            uint256 rem = diff % size;
+            if (rem == 0) return max;
+            result = min + rem - 1;
+        } else {
+            uint256 diff = min - x;
+            uint256 rem = diff % size;
+            if (rem == 0) return min;
+            result = max - rem + 1;
+        }
+    }
 }
